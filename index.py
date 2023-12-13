@@ -8,8 +8,8 @@ from sqlite3 import dbapi2 as sq3
 from pathlib import Path
 from collections import OrderedDict
 
-# import tensorflow as tf
-# from tensorflow import keras
+import tensorflow as tf
+from tensorflow import keras
 
 from time import time
 from IPython.display import clear_output
@@ -161,78 +161,101 @@ CREATE TABLE "reviews" (
 """
 schema_close = ");"
 
-#Load data about all businesses
-business_df = load_rows(BUSINESS_PATH)
-business_df.head()
+# #Load data about all businesses
+# business_df = load_rows(BUSINESS_PATH)
+# business_df.head()
 
-#Here we preprocess our businesses data
-def preprocess_business_df(df):
+# #Here we preprocess our businesses data
+# def preprocess_business_df(df):
+#     """
+#     Preprocess data from BUSINESS_PATH
+#     returns final DataFrame
+#     """
+#     #Changing business_id to numbers
+#     global businessid_to_idx
+#     businessid_to_idx = {b_id : idx for idx, b_id in enumerate(df.business_id.unique())}
+#     df.business_id = df.business_id.map(lambda x: businessid_to_idx[x])
+
+#     #TDT
+#     df.is_open = df.is_open.astype(bool)
+
+#     # Exploding attributes [MultiCategorization]
+#     attr = [col for col in df.attributes.explode().unique() if col is not None]
+#     lst_of_attr_dict = []
+#     for attr_dict in df.attributes:
+#         if not attr_dict:
+#             lst_of_attr_dict.append({})
+#         continue
+
+#     if 'BusinessParking' in attr_dict:
+#         if type(attr_dict['BusinessParking']) == str:
+#             attr_dict['BusinessParking'] = ('True' in attr_dict['BusinessParking'])
+
+#     lst_of_attr_dict.append(attr_dict)
+
+#     attr_df = pd.DataFrame(lst_of_attr_dict, columns=attr)
+#     for col in attr_df:
+#         #Handling missing
+#         #Strategy -> absence of attribute means restauratn doesn't have it
+#         #ex. If parking is null then restaurant doesn't have parking
+#         attr_df[col] = attr_df[col].fillna(False).astype(bool)
+    
+#     df = pd.concat([df.reset_index().drop('index', axis=1), attr_df], axis=1)
+#     df.drop(['attributes'], axis=1, inplace=True)
+    
+#     #Exploding hours ie. getting opening and closing time for various days
+#     lst_of_time = []
+#     for time_dict in df.hours:
+#         if not time_dict:
+#             lst_of_time.append({})
+#             continue
+#         lst_of_time.append(time_dict)
+#     time_df = pd.DataFrame(lst_of_time)
+#     df = pd.concat([df, time_df], axis=1).drop('hours', axis=1)
+#     return df
+
+# business_df = preprocess_business_df(business_df)
+# print(business_df.info())
+
+# # Completing Business Table Schema
+# for bool_col in business_df.columns[12:51]:
+#     businesses_schema += '    \"' + bool_col + '\"' + ' BOOLEAN,\n'
+# for day in business_df.columns[51:]:
+#     businesses_schema += '    \"' + day + '\"' + ' VARCHAR,\n'
+    
+# businesses_schema = businesses_schema[:-2] + schema_close
+
+# #Create db
+# db = init_db("yelp_database.db", users_schema+businesses_schema+reviews_schema)
+
+#business data to sql
+# business_df.to_sql('businesses', db, if_exists='append', index=False)
+
+#release memory
+# del business_df
+
+
+user_df = load_rows(USER_PATH)
+def preprocess_user_df(df):
     """
     Preprocess data from BUSINESS_PATH
     returns final DataFrame
     """
     #Changing business_id to numbers
-    global businessid_to_idx
-    businessid_to_idx = {b_id : idx for idx, b_id in enumerate(df.business_id.unique())}
-    df.business_id = df.business_id.map(lambda x: businessid_to_idx[x])
-
-    #TDT
-    df.is_open = df.is_open.astype(bool)
-
-    # Exploding attributes [MultiCategorization]
-    attr = [col for col in df.attributes.explode().unique() if col is not None]
-    lst_of_attr_dict = []
-    for attr_dict in df.attributes:
-        if not attr_dict:
-            lst_of_attr_dict.append({})
-        continue
-
-    if 'BusinessParking' in attr_dict:
-        if type(attr_dict['BusinessParking']) == str:
-            attr_dict['BusinessParking'] = ('True' in attr_dict['BusinessParking'])
-
-    lst_of_attr_dict.append(attr_dict)
-
-    attr_df = pd.DataFrame(lst_of_attr_dict, columns=attr)
-    for col in attr_df:
-        #Handling missing
-        #Strategy -> absence of attribute means restauratn doesn't have it
-        #ex. If parking is null then restaurant doesn't have parking
-        attr_df[col] = attr_df[col].fillna(False).astype(bool)
-    
-    df = pd.concat([df.reset_index().drop('index', axis=1), attr_df], axis=1)
-    df.drop(['attributes'], axis=1, inplace=True)
-    
-    #Exploding hours ie. getting opening and closing time for various days
-    lst_of_time = []
-    for time_dict in df.hours:
-        if not time_dict:
-            lst_of_time.append({})
-            continue
-        lst_of_time.append(time_dict)
-    time_df = pd.DataFrame(lst_of_time)
-    df = pd.concat([df, time_df], axis=1).drop('hours', axis=1)
+    global userid_to_idx
+    userid_to_idx = {b_id : idx for idx, b_id in enumerate(df.user_id.unique())}
+    df.user_id = df.user_id.map(lambda x: userid_to_idx[x])
     return df
 
-business_df = preprocess_business_df(business_df)
-print(business_df.info())
+user_df = preprocess_user_df(user_df)
+connection = sq3.connect('yelp_database.db')
+user_df.to_sql('users', connection, if_exists='append', index=False)
 
-# Completing Business Table Schema
-for bool_col in business_df.columns[12:51]:
-    businesses_schema += '    \"' + bool_col + '\"' + ' BOOLEAN,\n'
-for day in business_df.columns[51:]:
-    businesses_schema += '    \"' + day + '\"' + ' VARCHAR,\n'
-    
-businesses_schema = businesses_schema[:-2] + schema_close
+query = "SELECT * FROM users"
+user_df = pd.read_sql_query(query, connection)
 
-#Create db
-db = init_db("yelp_database.db", users_schema+businesses_schema+reviews_schema)
-
-#business data to sql
-business_df.to_sql('businesses', db, if_exists='append', index=False)
-
-#release memory
-del business_df
-
-user_df = load_rows(USER_PATH)
 print(user_df.head())
+
+connection.close()
+
+
