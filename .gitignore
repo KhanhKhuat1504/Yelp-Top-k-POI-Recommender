@@ -153,7 +153,7 @@ dmypy.json
 cython_debug/
 
 # csv and json files
-*.csv
+
 *.json
 
 # PyCharm
