@@ -156,6 +156,7 @@ cython_debug/
 *.csv
 *.json
 *.pb
+*.db
 *.index
 
 # PyCharm
@@ -165,3 +166,4 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 cleaned_yelp_academic_dataset_business.csv
+Nonlinear_model/variables/variables.data-00000-of-00001
