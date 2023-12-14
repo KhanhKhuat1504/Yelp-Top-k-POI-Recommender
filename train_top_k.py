@@ -143,28 +143,106 @@ test_baseline = mse(y_test, [mean_rating]*y_test.shape[0])
 # model2.save('Nonlinear_model')
 
 model2_recreated =  load_model("Nonlinear_model")
+# model2_recreated.prei
+# #Calculating MSE 
+# ticks = ["Train", "Val", "Test"]
+# avg_model = [train_baseline, val_baseline, test_baseline]
+# linear_model, non_linear_model = [], []
 
-#Calculating MSE 
-ticks = ["Train", "Val", "Test"]
-avg_model = [train_baseline, val_baseline, test_baseline]
-linear_model, non_linear_model = [], []
+# for data in [(X_train, y_train), (X_val, y_val), (X_test, y_test)]:
+    
+#     nonlin_mse = mse(data[1], model2_recreated.predict([data[0]['user_id'],data[0]['business_id']], verbose=1))
+#     non_linear_model.append(nonlin_mse)
+    
+#     clear_output()
+    
+# #Plotting Modelwise Error
+# plt.figure(figsize=(8,8))
+# ax = plt.gca()
 
-for data in [(X_train, y_train), (X_val, y_val), (X_test, y_test)]:
-    
-    nonlin_mse = mse(data[1], model2_recreated.predict([data[0]['user_id'],data[0]['business_id']], verbose=1))
-    non_linear_model.append(nonlin_mse)
-    
-    clear_output()
-    
-#Plotting Modelwise Error
-plt.figure(figsize=(8,8))
-ax = plt.gca()
+# ax.plot(avg_model, "o-", label="Average Model")
+# ax.plot(linear_model, "o-", label="Linear Model")
+# print(linear_model)
+# ax.plot(non_linear_model, "o-", label="Non-Linear Model")
+# print(non_linear_model)
+# ax.set(xlabel='', ylabel='MSE', xticks=[0,1,2], xticklabels=["Train Error", "Val Error", "Test Error"])
+# ax.legend()
+# plt.show()
 
-ax.plot(avg_model, "o-", label="Average Model")
-ax.plot(linear_model, "o-", label="Linear Model")
-print(linear_model)
-ax.plot(non_linear_model, "o-", label="Non-Linear Model")
-print(non_linear_model)
-ax.set(xlabel='', ylabel='MSE', xticks=[0,1,2], xticklabels=["Train Error", "Val Error", "Test Error"])
-ax.legend()
-plt.show()
+# This cell has candidate generation function
+
+def generate_candidates(user_id, friend=False):
+    """
+    Returns list of business id's which could be good prospects for a particular user.
+    Factors in location and user's friends' choices
+    
+    Parameters:
+    user_id : id of user
+    friend : Recursive call to get user's friends. Internal calls only
+    
+    Return:
+    lst : list of restaurant ids. Is not empty
+    """
+    lst = []
+    top_candidates_by_city = 20
+    top_candidates_by_frnd = 10
+
+    # By Location
+    #all the restaurants user has been to previously
+    user_history = reviews_df.query(f'user_id=={user_id}')
+    if user_history.shape[0]!=0:
+        # Details about those restaurants
+        visit_history = business_df.query(f'business_id in {list(user_history.business_id)}')
+        # Implying city user lives in by looking at most frequent city in history
+        #This will allow our recommendation to personalize recommendations for user
+        city_mode = visit_history.city.mode()
+        
+        if not friend:
+            for city in city_mode:
+                city_df = business_df.query(f'city == "{city}"').sort_values(by='stars')[:400]
+                lst.extend(city_df.business_id[:top_candidates_by_city].values)
+        
+        #If recursive call return restuarants rated highly by friend
+        else:
+            frnd_favourite =  visit_history.sort_values(by='stars', ascending=False).business_id.values[:top_candidates_by_frnd]
+            lst.extend(frnd_favourite)
+            return lst
+     
+    # Restaurants liked By Friends
+    frnd_lst = eval(make_query(f"SELECT friends FROM users WHERE user_id={user_id}")[0][0])
+
+    for frnd in frnd_lst:
+        # Recursive Call
+        # returns restuarnts friend has been to and has rated highly
+        frnd_recom = generate_candidates(frnd, friend=True)
+        lst.extend(frnd_recom)
+        
+    #If list is not empty
+    if lst:
+        #Return unique entries
+        return list(set(lst))
+    
+    # List is empty Hence user is a loner.
+    return loner_user()
+
+def loner_user():
+    """
+    A user is a loner if he has no friends and has not rated any restaurants. For such users we'll 
+    generate candidates based on restaurant base ratings (restaurant biases). 
+    This could be a new user on site who hasn't interacted much. 
+    
+    Return:
+    lst : list of restaurant ids. Is not empty
+    """
+    return_top = 20
+    restaurant_bias = model2.get_layer('restaurant_bias').weights[0].numpy()
+    bias_df = pd.DataFrame(restaurant_bias, columns=['restaurant_bias'])
+    bias_df.index.name='business_id'
+    bias_df = bias_df.sort_values(by='restaurant_bias', ascending=False)
+
+    return bias_df.index[:return_top].tolist()
+
+#Improvements 
+#Candidate Generation can be improved by adding explicit args for city and restaurant category type
+
+generate_candidates(user_id=4)
