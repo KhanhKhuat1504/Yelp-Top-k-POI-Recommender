@@ -236,26 +236,28 @@ schema_close = ");"
 
 
 user_df = load_rows(USER_PATH)
+#Preproccess user data
 def preprocess_user_df(df):
-    """
-    Preprocess data from BUSINESS_PATH
-    returns final DataFrame
-    """
-    #Changing business_id to numbers
+    #Changing user id to something more suitable for our analysis
     global userid_to_idx
-    userid_to_idx = {b_id : idx for idx, b_id in enumerate(df.user_id.unique())}
+    userid_to_idx = {user : idx for idx, user in enumerate(df.user_id.unique())}
     df.user_id = df.user_id.map(lambda x: userid_to_idx[x])
+    #Changing friends ids to new int ids
+    df.friends = df.friends.map(lambda x : str([userid_to_idx[user] for user in x.split(',') if user in userid_to_idx]))
+    #TDT to datetime
+    df.yelping_since = pd.to_datetime(df.yelping_since)
+    df.elite = df.elite.replace('', np.nan)
     return df
 
 user_df = preprocess_user_df(user_df)
+
 connection = sq3.connect('yelp_database.db')
 user_df.to_sql('users', connection, if_exists='append', index=False)
 
-query = "SELECT * FROM users"
-user_df = pd.read_sql_query(query, connection)
+#Sending user data to SQL db
+user_df.to_sql('users', connection, if_exists='replace', index=False)
+#Release memory
+del user_df
 
-print(user_df.head())
-
-connection.close()
 
 
