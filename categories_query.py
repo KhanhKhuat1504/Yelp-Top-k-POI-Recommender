@@ -25,20 +25,25 @@ categories = [
 # weighted_score_query = "0.7 * review_count + 0.3 * stars"
 
 # Create a subquery to count the matches for each business
-match_count_query = " + ".join(
-    [
-        f"(CASE WHEN categories LIKE '%{category}%' THEN 1 ELSE 0 END)"
-        for category in categories
-    ]
-)
+# match_count_query = " + ".join(
+#     [
+#         f"(CASE WHEN categories LIKE '%{category}%' THEN 1 ELSE 0 END)"
+#         for category in categories
+#     ]
+# )
 
 # Create the main query
-query = f"""
-SELECT *, ({match_count_query}) AS match_count
-FROM businesses
-WHERE ({match_count_query}) > 0
-ORDER BY match_count DESC LIMIT 10
-"""
+# query = f"""
+# SELECT *, ({match_count_query}) AS match_count
+# FROM businesses
+# WHERE ({match_count_query}) > 0
+# ORDER BY match_count DESC LIMIT 10
+# """
+query = (
+    "SELECT * FROM businesses WHERE "
+    + " OR ".join([f"categories LIKE '%{category}%'" for category in categories])
+    + " ORDER BY stars DESC LIMIT 10"
+)
 
 df = pd.read_sql_query(query, connection)
 
