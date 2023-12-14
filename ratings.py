@@ -6,12 +6,12 @@ connection = sq3.connect('yelp_database.db')
 
 cursor = connection.cursor()
 
-query = "SELECT * FROM businesses ORDER BY stars DESC LIMIT 10"
+query = "SELECT * FROM businesses ORDER BY stars DESC LIMIT 20"
 
 df = pd.read_sql_query(query, connection)
 
 
-print(df[['business_id', 'name', 'stars']])
+print(df[['business_id', 'city', 'name', 'stars']])
 
 
 #print(df.head()['categories'])
